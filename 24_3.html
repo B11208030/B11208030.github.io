@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>百靈果 NotebookLM | 大學生專屬知識庫</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        /* Custom Scrollbar for better UI */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .chat-bubble-user {
+            background-color: #10b981; /* Emerald 500 */
+            color: white;
+            border-radius: 16px 16px 0px 16px;
+        }
+        .chat-bubble-bot {
+            background-color: #f1f5f9; /* Slate 100 */
+            color: #1e293b;
+            border-radius: 16px 16px 16px 0px;
+            border: 1px solid #e2e8f0;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        .source-card {
+            transition: all 0.2s ease;
+        }
+        .source-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-color: #3b82f6; /* Blue 500 */
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Top Navigation -->
+    <header class="bg-white shadow-sm z-10 flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    B
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">百靈果 NotebookLM</h1>
+                    <p class="text-xs text-slate-500 font-medium">大學生專屬知識庫 (Demo)</p>
+                </div>
+            </div>
+            <div class="hidden sm:flex space-x-4">
+                <a href="#" class="text-slate-500 hover:text-black font-medium transition-colors"><i class="fa-solid fa-circle-info mr-1"></i> 關於專案</a>
+                <a href="https://github.com" target="_blank" class="text-slate-500 hover:text-black font-medium transition-colors"><i class="fa-brands fa-github mr-1"></i> GitHub</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area (Two Columns simulating NotebookLM) -->
+    <main class="flex-grow flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Left Panel: Resource Library & Search -->
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 border-r border-slate-200 flex flex-col h-[40vh] md:h-full flex-shrink-0">
+            <div class="p-4 border-b border-slate-200 bg-white">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center">
+                    <i class="fa-solid fa-layer-group mr-2 text-blue-500"></i> 資源庫 (來源文件)
+                </h2>
+                <!-- Search Box -->
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                    </div>
+                    <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors" placeholder="搜尋集數、主題或來賓...">
+                </div>
+            </div>
+            
+            <!-- Source List -->
+            <div class="flex-grow overflow-y-auto p-4 space-y-3" id="sourceList">
+                <!-- Sources will be injected by JS -->
+            </div>
+        </aside>
+
+        <!-- Right Panel: Chatbox & FAQ -->
+        <section class="w-full md:w-2/3 lg:w-3/4 flex flex-col h-[60vh] md:h-full bg-white relative">
+            
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 flex-shrink-0">
+                <button onclick="switchTab('chat')" id="tab-chat" class="px-4 py-2 text-sm font-bold border-b-2 border-blue-500 text-blue-600 transition-colors">
+                    <i class="fa-solid fa-sparkles mr-1"></i> NotebookLM 對話框
+                </button>
+                <button onclick="switchTab('faq')" id="tab-faq" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors">
+                    <i class="fa-solid fa-circle-question mr-1"></i> 常見問題 (FAQ)
+                </button>
+            </div>
+
+            <!-- Tab Content: NotebookLM Chat -->
+            <div id="content-chat" class="flex-grow flex flex-col overflow-hidden relative bg-white">
+                
+                <!-- Chat History -->
+                <div id="chatLog" class="flex-grow overflow-y-auto p-4 md:p-6 space-y-6">
+                    <!-- Welcome Message -->
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                            <i class="fa-solid fa-robot text-blue-600 text-sm"></i>
+                        </div>
+                        <div class="chat-bubble-bot p-4 shadow-sm max-w-[85%]">
+                            <p class="leading-relaxed">哈囉！我是基於 <strong>百靈果News Podcast 逐字稿</strong> 打造的 NotebookLM 助理。👋</p>
+                            <p class="leading-relaxed mt-2">身為大學生的你，有什麼想問的嗎？我可以幫你從左側的資源庫中，找出關於：</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-sm font-medium text-slate-700">
+                                <li>感情探討與交友軟體秘辛 (給約嗎系列)</li>
+                                <li>職涯規劃與創業故事 (The KK Show 訪談)</li>
+                                <li>喜劇圈八卦與公關危機 (賀瓏、黃豪平)</li>
+                                <li>近期熱門國際新聞 (美國大選、社群媒體)</li>
+                            </ul>
+                            <p class="leading-relaxed mt-2 text-sm text-slate-500">試著問我：「有推薦大學生聽的職涯訪談嗎？」或是「百靈果有聊過 AI 嗎？」</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input Area -->
+                <div class="p-4 bg-white border-t border-slate-100 flex-shrink-0">
+                    <div class="max-w-3xl mx-auto relative">
+                        <textarea id="chatInput" rows="1" class="block w-full resize-none py-3 pl-4 pr-12 bg-slate-100 border border-transparent rounded-2xl focus:outline-none focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm" placeholder="基於來源文件提問... (按 Enter 發送)"></textarea>
+                        <button id="sendBtn" class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-transform active:scale-95">
+                            <i class="fa-solid fa-arrow-up text-sm"></i>
+                        </button>
+                    </div>
+                    <p class="text-center text-[10px] text-slate-400 mt-2">AI 模擬回覆僅基於本頁面左側之百靈果逐字稿資料，可能包含不準確的資訊。</p>
+                </div>
+            </div>
+
+            <!-- Tab Content: FAQ -->
+            <div id="content-faq" class="hidden flex-grow overflow-y-auto p-4 md:p-8 bg-slate-50">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">常見問題 (FAQ)</h2>
+                    
+                    <div class="space-y-4">
+                        <!-- FAQ Item 1 -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <button class="faq-btn w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none">
+                                <span class="font-bold text-slate-700">這是一個什麼樣的網站？</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                            </button>
+                            <div class="faq-content hidden px-6 pb-4 text-slate-600 leading-relaxed text-sm">
+                                這是一個專為大學生設計的響應式知識庫網站。本網站模擬了 Google NotebookLM 的核心體驗，將大量未整理的逐字稿資料（來源為百靈果 News 的 Podcast 節目）匯入系統，並提供搜尋與 AI 聊天對話功能，幫助你快速找出想聽的集數或主題重點。
+                            </div>
+                        </div>
+
+                        <!-- FAQ Item 2 -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <button class="faq-btn w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none">
+                                <span class="font-bold text-slate-700">左側資源庫的內容來源是哪裡？</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                            </button>
+                            <div class="faq-content hidden px-6 pb-4 text-slate-600 leading-relaxed text-sm">
+                                資源庫 100% 來自於真實的「百靈果News」Podcast 及其周邊節目（如 The KK Show、讀書會、給約嗎、嬰兒限定 等）的逐字稿檔案。這涵蓋了從喜劇演員訪談、創業家故事、兩性感情到國際政經新聞等多元內容。
+                            </div>
+                        </div>
+
+                        <!-- FAQ Item 3 -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <button class="faq-btn w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none">
+                                <span class="font-bold text-slate-700">NotebookLM 對話框可以問什麼問題？</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
+                            </button>
+                            <div class="faq-content hidden px-6 pb-4 text-slate-600 leading-relaxed text-sm">
+                                本系統的對話框是基於關鍵字分析的模擬 AI。強烈建議你針對以下主題提問：
+                                <ul class="list-disc list-inside mt-2 space-y-1">
+                                    <li><strong>感情與交友：</strong>「交友軟體有什麼八卦？」「有哪些關於戀愛的訪談？」</li>
+                                    <li><strong>職涯與創業：</strong>「有哪些創業家的故事？」「華爾街的工作環境如何？」</li>
+                                    <li><strong>國際新聞：</strong>「百靈果有聊過烏克蘭戰爭或美國政治嗎？」</li>
+                                    <li><strong>喜劇與生活：</strong>「有訪問過哪些脫口秀演員？」</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        // --- 1. Resource Library & Search Logic ---
+        const sourceData = [
+            { title: "The KK Show - 288 心靈舒壓會館 徐志雲醫師", tag: "訪談" },
+            { title: "婚內再婚，性福找紅犀牛", tag: "生活" },
+            { title: "百靈果NEWS｜百靈果要被AI取代，世界大戰的預兆", tag: "國際新聞" },
+            { title: "The KK Show - 272 漫才少爺", tag: "喜劇" },
+            { title: "The KK Show - 280 成人網站上的數學老師 - 張旭", tag: "訪談" },
+            { title: "The KK Show 354 - 大老闆戰酸民 Aaron", tag: "職涯/創業" },
+            { title: "The KK Show 312 - 深入烏克蘭的台灣記者 致昕", tag: "國際新聞" },
+            { title: "給約嗎 | ep4 美國律師 vs 富家子弟", tag: "感情交友" },
+            { title: "給約嗎 | ep6 怡岑 VS 大肌肌", tag: "感情交友" },
+            { title: "The KK Show 310 - 立法委員 沈伯洋", tag: "政治社會" },
+            { title: "The KK Show - 290 賀瓏", tag: "喜劇" },
+            { title: "40歲跳脫舒適圈，創業十年締造十億業績- 可若夫", tag: "職涯/創業" },
+            { title: "The KK Show 306 - 我媽是中國人 陳湘妤心理師", tag: "訪談" },
+            { title: "The KK Show - 277 蔡康永", tag: "訪談" },
+            { title: "百靈果NEWS｜剛判完韓國前第一夫人的法官墜樓身亡...", tag: "國際新聞" }
+        ];
+
+        const sourceListEl = document.getElementById('sourceList');
+        const searchInput = document.getElementById('searchInput');
+
+        function renderSources(filterText = '') {
+            sourceListEl.innerHTML = '';
+            const filtered = sourceData.filter(item => 
+                item.title.toLowerCase().includes(filterText.toLowerCase()) || 
+                item.tag.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                sourceListEl.innerHTML = `<div class="text-center text-sm text-slate-400 py-4">找不到符合的資源文件</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'source-card bg-white p-3 rounded-xl border border-slate-200 cursor-pointer shadow-sm';
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="mt-1 flex-shrink-0">
+                            <i class="fa-regular fa-file-lines text-slate-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-700 leading-tight mb-1 line-clamp-2">${item.title}</h3>
+                            <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded uppercase tracking-wide">${item.tag}</span>
+                        </div>
+                    </div>
+                `;
+                // Add click event to simulate loading document to AI
+                card.addEventListener('click', () => {
+                    chatInput.value = `我想了解關於「${item.title}」的內容`;
+                    chatInput.focus();
+                });
+                sourceListEl.appendChild(card);
+            });
+        }
+
+        searchInput.addEventListener('input', (e) => renderSources(e.target.value));
+        // Initial render
+        renderSources();
+
+
+        // --- 2. Tab Switching Logic ---
+        function switchTab(tabName) {
+            const chatContent = document.getElementById('content-chat');
+            const faqContent = document.getElementById('content-faq');
+            const chatTabBtn = document.getElementById('tab-chat');
+            const faqTabBtn = document.getElementById('tab-faq');
+
+            if (tabName === 'chat') {
+                chatContent.classList.remove('hidden');
+                faqContent.classList.add('hidden');
+                
+                chatTabBtn.classList.add('border-blue-500', 'text-blue-600');
+                chatTabBtn.classList.remove('border-transparent', 'text-slate-500');
+                
+                faqTabBtn.classList.remove('border-blue-500', 'text-blue-600');
+                faqTabBtn.classList.add('border-transparent', 'text-slate-500');
+            } else {
+                chatContent.classList.add('hidden');
+                faqContent.classList.remove('hidden');
+                
+                faqTabBtn.classList.add('border-blue-500', 'text-blue-600');
+                faqTabBtn.classList.remove('border-transparent', 'text-slate-500');
+                
+                chatTabBtn.classList.remove('border-blue-500', 'text-blue-600');
+                chatTabBtn.classList.add('border-transparent', 'text-slate-500');
+            }
+        }
+
+
+        // --- 3. FAQ Accordion Logic ---
+        const faqBtns = document.querySelectorAll('.faq-btn');
+        faqBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const content = btn.nextElementSibling;
+                const icon = btn.querySelector('i');
+                
+                // Toggle current
+                content.classList.toggle('hidden');
+                if (content.classList.contains('hidden')) {
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            });
+        });
+
+
+        // --- 4. NotebookLM Chatbot Logic ---
+        const chatLog = document.getElementById('chatLog');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            if(this.value === '') this.style.height = 'auto'; // reset
+        });
+
+        function appendMessage(text, isUser) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isUser ? 'flex items-start gap-4 flex-row-reverse' : 'flex items-start gap-4';
+            
+            const avatar = isUser ? 
+                `<div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 border border-emerald-200">
+                    <i class="fa-solid fa-user text-emerald-600 text-sm"></i>
+                </div>` : 
+                `<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                    <i class="fa-solid fa-robot text-blue-600 text-sm"></i>
+                </div>`;
+
+            const bubbleClass = isUser ? 'chat-bubble-user p-3 shadow-sm max-w-[85%]' : 'chat-bubble-bot p-4 shadow-sm max-w-[85%]';
+            
+            msgDiv.innerHTML = `
+                ${avatar}
+                <div class="${bubbleClass}">
+                    <p class="leading-relaxed text-sm whitespace-pre-line">${text}</p>
+                </div>
+            `;
+            chatLog.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function appendTypingIndicator() {
+            const msgDiv = document.createElement('div');
+            msgDiv.id = 'typingIndicator';
+            msgDiv.className = 'flex items-start gap-4';
+            msgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                    <i class="fa-solid fa-robot text-blue-600 text-sm"></i>
+                </div>
+                <div class="chat-bubble-bot px-4 py-3 shadow-sm">
+                    <div class="typing-indicator flex items-center h-5">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            chatLog.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typingIndicator');
+            if(el) el.remove();
+        }
+
+        function scrollToBottom() {
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // Fake AI Logic based on uploaded knowledge base
+        function getBotResponse(input) {
+            const text = input.toLowerCase();
+            
+            if (text.includes('感情') || text.includes('交友') || text.includes('約炮') || text.includes('戀愛') || text.includes('給約嗎')) {
+                return `根據資源庫中《給約嗎》系列（如 ep4 美國律師 vs 富家子弟、ep6 怡岑 VS 大肌肌），裡面深入探討了大學生與年輕人在交友軟體上的經驗與擇偶條件。另外，《The KK Show 300 - 麥摳》也分享了在洛杉磯留學時，與不同文化背景人士約會的有趣觀察。`;
+            }
+            if (text.includes('工作') || text.includes('創業') || text.includes('職涯') || text.includes('老闆') || text.includes('錢')) {
+                return `關於職涯與創業，知識庫中有幾集非常推薦：\n1. 《40歲跳脫舒適圈，創業十年締造十億業績- 可若夫 Christina》：分享跨出舒適圈的創業歷程。\n2. 《The KK Show 354 - 華爾街之狼 Aaron》：探討投資銀行的高壓生態與留學經驗。\n3. 《The KK Show 302 - 晶華酒店老闆 潘思亮》：可以聽到大企業家對於觀光與人才培養的看法。`;
+            }
+            if (text.includes('新聞') || text.includes('國際') || text.includes('政治') || text.includes('出國') || text.includes('烏克蘭')) {
+                return `這部分你可以參考《百靈果NEWS》系列，裡面涵蓋了如「美國大選川普動態」、「俄國與烏克蘭戰爭」、「TikTok被禁」等時事。此外，《The KK Show 312 - 深入烏克蘭的台灣記者 致昕》提供了第一手的戰地深度觀察；《The KK Show 310 - 立法委員 沈伯洋》則討論了國家安全與認知作戰議題。`;
+            }
+            if (text.includes('喜劇') || text.includes('搞笑') || text.includes('脫口秀') || text.includes('薩泰爾') || text.includes('賀瓏')) {
+                return `在喜劇領域，知識庫收錄了多位知名表演者的訪談：\n- 《The KK Show - 290 賀瓏》：討論夜夜秀的幕後秘辛與炎上事件的公關處理。\n- 《The KK Show - 269 黃豪平》：分享得罪人的經驗與喜劇圈生態。\n- 《The KK Show - 272 漫才少爺》：探討日本與台灣在搞笑文化（漫才）上的差異。`;
+            }
+            if (text.includes('ai') || text.includes('人工智慧') || text.includes('notebooklm')) {
+                return `在《百靈果NEWS｜百靈果要被AI取代...》這一集中，主持人 Ken 與凱莉討論了 AI（如 ChatGPT 等工具）對內容創作者的影響。他們甚至實際測試了讓 AI 整理 Podcast 逐字稿，對於 AI 的總結能力與未來取代人力的可能性感到驚訝與擔憂。`;
+            }
+            if (text.includes('心理') || text.includes('諮商') || text.includes('壓力')) {
+                return `如果你對心理學或舒壓有興趣，可以參考：\n- 《The KK Show 306 - 陳湘妤心理師》：從心理學角度剖析人際關係。\n- 《The KK Show 288 - 心靈舒壓會館 徐志雲醫師》：探討精神科醫師在診療過程中的經驗與特殊的人際界線問題。`;
+            }
+            
+            return `根據目前載入的【百靈果逐字稿知識庫】，我找不到與「${input}」完全匹配的內容。\n\n建議你可以嘗試搜尋以下關鍵字：\n💡 「感情交友」\n💡 「職涯與創業」\n💡 「國際新聞分析」\n💡 「喜劇脫口秀圈秘辛」`;
+        }
+
+        function handleSend() {
+            const val = chatInput.value.trim();
+            if(!val) return;
+
+            // User message
+            appendMessage(val, true);
+            chatInput.value = '';
+            chatInput.style.height = 'auto'; // reset height
+
+            // Show typing indicator
+            appendTypingIndicator();
+
+            // Simulate network delay
+            setTimeout(() => {
+                removeTypingIndicator();
+                const response = getBotResponse(val);
+                appendMessage(response, false);
+            }, 1200 + Math.random() * 800); // 1.2s - 2.0s random delay
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        chatInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
+
+    </script>
+</body>
+</html>
